@@ -1,244 +1,201 @@
 import Device from '../models/device-metadata.js';
-import { successResponse, errorResponse } from '../utils/response.js';
+import asyncHandler from '../utils/asyncHandler.js';
+import { successResponse, errorResponse } from '../utils/responseHandler.js';
 
-// Create a new device
-export const createDevice = async (req, res) => {
-    try {
-        // cheking if device exists
-        const existingDevice = await Device.findOne({ productId: req.body.productId });
-        if (existingDevice) {
-            return errorResponse(res, "Device with this Product ID already exists", 400);
-        }
-        let newDevice = {...req.body , installDate:new Date() , enabled:true , active:true};
+// ✅ Get all devices (with pagination)
+export const getAllDevices = asyncHandler(async (req, res) => {
+    let { page, limit } = req.query;
+    page = parseInt(page) || 1;
+    limit = parseInt(limit) || 10;
+    const skip = (page - 1) * limit;
 
-        const device = await Device.create(newDevice);
-        return successResponse(res, device, "Device created successfully", 201);
-    } catch (error) {
-        return errorResponse(res, error.message, 400);
+    const devices = await Device.find({ deleted: false }).skip(skip).limit(limit);
+    const totalDevices = await Device.countDocuments({ deleted: false });
+
+    return successResponse(res, {
+        devices,
+        totalPages: Math.ceil(totalDevices / limit),
+        currentPage: page,
+        totalDevices
+    }, "Devices retrieved successfully", 200);
+});
+
+// ✅ Get a single device by productId
+export const getDeviceById = asyncHandler(async (req, res) => {
+    const { productId } = req.params;
+    const device = await Device.findOne({ productId, deleted: false });
+
+    if (!device) {
+        return errorResponse(res, "Device not found", 404);
     }
-};
+    return successResponse(res, device, "Device retrieved successfully", 200);
+});
 
-// Get all devices
-export const getAllDevices = async (req, res) => {
-    try {
-        let { page, limit } = req.query;
+// ✅ Create a new device (check for duplicate ProductId)
+export const createDevice = asyncHandler(async (req, res) => {
+    const { productId } = req.body;
 
-        // Convert page & limit to numbers and set defaults
-        page = parseInt(page) || 1;
-        limit = parseInt(limit) || 10;
-        const skip = (page - 1) * limit;
-
-        // Query only active (non-deleted) devices
-        const devices = await Device.find({ deleted: false })
-            .skip(skip)
-            .limit(limit);
-
-        // Get total count of non-deleted devices
-        const totalDevices = await Device.countDocuments({ deleted: false });
-
-        return successResponse(res, {
-            devices,
-            totalPages: Math.ceil(totalDevices / limit),
-            currentPage: page,
-            totalDevices
-        }, "Devices retrieved successfully", 200);
-    } catch (error) {
-        return errorResponse(res, error.message, 500);
+    // Check if device with the same productId exists
+    const existingDevice = await Device.findOne({ productId });
+    if (existingDevice) {
+        return errorResponse(res, "Product ID already exists", 400);
     }
-};
 
+    const device = new Device(req.body);
+    await device.save();
+    return successResponse(res, device, "Device created successfully", 201);
+});
 
-// Get device by ID
-export const getDeviceById = async (req, res) => {
-    try {
-        const device = await Device.findOne({productId:req.params.productId});
-        if (!device) return errorResponse(res, "Device not found", 404);
-        return successResponse(res, device, "Device retrieved successfully");
-    } catch (error) {
-        return errorResponse(res, error.message, 500);
+// ✅ Update a device (Only update provided fields, add lastUpdated)
+export const updateDevice = asyncHandler(async (req, res) => {
+    const { productId } = req.params;
+    const updates = req.body;
+
+    updates.lastUpdated = new Date();
+
+    const updatedDevice = await Device.findOneAndUpdate(
+        { productId, deleted: false },
+        { $set: updates },
+        { new: true, runValidators: true }
+    );
+
+    if (!updatedDevice) {
+        return errorResponse(res, "Device not found", 404);
     }
-};
 
-// Update device
-export const updateDevice = async (req, res) => {
-    //TODO: if updating productId need to check if conflicts with any other 
-    try {
-        const { productId } = req.params; // Get productId from URL
+    return successResponse(res, updatedDevice, "Device updated successfully", 200);
+});
 
-        // Find the device by productId
-        const device = await Device.findOne({ productId });
-        if (!device) {
-            return errorResponse(res, "Device not found", 404);
-        }
+// ✅ Soft delete a device (set deleted = true)
+export const deleteDevice = asyncHandler(async (req, res) => {
+    const { productId } = req.params;
 
-        // Update only the fields present in req.body
-        Object.keys(req.body).forEach(key => {
-            device[key] = req.body[key];
-        });
+    const updatedDevice = await Device.findOneAndUpdate(
+        { productId, deleted: false },
+        { $set: { deleted: true } },
+        { new: true }
+    );
 
-        // Add the lastUpdated timestamp
-        device.lastUpdated = new Date();
-        device.__v +=1
-
-        // Save the updated device
-        await device.save();
-
-        return successResponse(res, device, "Device updated successfully", 200);
-    } catch (error) {
-        return errorResponse(res, error.message, 400);
+    if (!updatedDevice) {
+        return errorResponse(res, "Device not found or already deleted", 404);
     }
-};
 
-// Delete device
-export const deleteDevice = async (req, res) => {
-    try {
-        const { productId } = req.params; // Get productId from URL
+    return successResponse(res, null, "Device marked as deleted", 200);
+});
 
-        // Find the device
-        const device = await Device.findOne({ productId });
-        if (!device) {
-            return errorResponse(res, "Device not found", 404);
-        }
-        // Mark as deleted
-        device.deleted = true;
-        device.lastUpdated = new Date();
-        device.__v += 1
-        await device.save();
 
-        return successResponse(res, null, "Device is Successfully deleted", 200);
-    } catch (error) {
-        return errorResponse(res, error.message, 400);
+
+
+// ✅ Add a slave device (check for duplicate slaveId)
+export const addSlaveDevice = asyncHandler(async (req, res) => {
+    const { productId } = req.params;
+    const newSlave = req.body;
+
+    const device = await Device.findOne({ productId, deleted: false });
+
+    if (!device) {
+        return errorResponse(res, "Device not found", 404);
     }
-};
 
-export const addSlaveDevice = async (req, res) => {
-    try {
-        const { productId } = req.params;
-        const newSlave = req.body;
+    const existingSlave = device.slaveDevices.find(
+        (slave) => slave.slaveId === newSlave.slaveId && !slave.deleted
+    );
 
-        // Find the device by productId (excluding soft-deleted devices)
-        const device = await Device.findOne({ productId, deleted: false });
-
-        if (!device) {
-            return errorResponse(res, "Device not found", 404);
-        }
-
-        // Check if slaveId already exists (excluding soft-deleted slaves)
-        const existingSlave = device.slaveDevices.find(
-            (slave) => slave.slaveId === newSlave.slaveId && !slave.deleted
-        );
-
-        if (existingSlave) {
-            return errorResponse(res, "Slave ID already exists", 400);
-        }
-
-        // Add the new slave with deleted: false by default
-        newSlave.deleted = false;
-        device.slaveDevices.push(newSlave);
-        await device.save();
-
-        return successResponse(res, newSlave, "Slave device added successfully", 201);
-    } catch (error) {
-        return errorResponse(res, error.message, 500);
+    if (existingSlave) {
+        return errorResponse(res, "Slave ID already exists", 400);
     }
-};
 
+    newSlave.deleted = false;
+    device.slaveDevices.push(newSlave);
+    await device.save();
 
-export const updateSlaveDevice = async (req, res) => {
-    try {
-        const { productId, slaveId } = req.params;
-        const updateData = req.body;
+    return successResponse(res, newSlave, "Slave device added successfully", 201);
+});
 
-        const device = await Device.findOne({ productId, deleted: false });
-        if (!device) {
-            return errorResponse(res, "Device not found", 404);
-        }
+// ✅ Update a slave device (only update provided fields)
+export const updateSlaveDevice = asyncHandler(async (req, res) => {
+    const { productId, slaveId } = req.params;
+    const updates = req.body;
 
-        // Find the slave device by slaveId
-        const slaveDevice = device.slaveDevices.find(slave => slave.slaveId === slaveId && !slave.deleted);
-        if (!slaveDevice) {
-            return errorResponse(res, "Slave device not found", 404);
-        }
+    const device = await Device.findOne({ productId, deleted: false });
 
-        // Update only provided fields
-        Object.keys(updateData).forEach(key => {
-            slaveDevice[key] = updateData[key];
-        });
-
-        slaveDevice.lastUpdated = new Date();
-        await device.save();
-
-        return successResponse(res, device, "Slave device updated successfully", 200);
-    } catch (error) {
-        return errorResponse(res, error.message, 400);
+    if (!device) {
+        return errorResponse(res, "Device not found", 404);
     }
-};
 
+    const slaveIndex = device.slaveDevices.findIndex(
+        (slave) => slave.slaveId === slaveId && !slave.deleted
+    );
 
-export const deleteSlaveDevice = async (req, res) => {
-    try {
-        const { productId, slaveId } = req.params;
-
-        const device = await Device.findOne({ productId, deleted: false });
-        if (!device) {
-            return errorResponse(res, "Device not found", 404);
-        }
-
-        // Find the slave device by slaveId
-        const slaveDevice = device.slaveDevices.find(slave => slave.slaveId === slaveId && !slave.deleted);
-        if (!slaveDevice) {
-            return errorResponse(res, "Slave device not found", 404);
-        }
-
-        slaveDevice.deleted = true;
-        device.lastUpdated = new Date();
-
-        await device.save();
-
-        return successResponse(res, null, "Slave device marked as deleted", 200);
-    } catch (error) {
-        return errorResponse(res, error.message, 400);
+    if (slaveIndex === -1) {
+        return errorResponse(res, "Slave device not found", 404);
     }
-};
 
+    // Update only provided fields
+    Object.assign(device.slaveDevices[slaveIndex], updates);
+    device.slaveDevices[slaveIndex].lastUpdated = new Date();
 
-export const getSlaveDevices = async (req, res) => {
-    try {
-        const { productId } = req.params;
+    await device.save();
 
-        const device = await Device.findOne({ productId, deleted: false });
-        if (!device) {
-            return errorResponse(res, "Device not found", 404);
-        }
+    return successResponse(res, device.slaveDevices[slaveIndex], "Slave device updated successfully", 200);
+});
 
-        // Filter out deleted slave devices
-        const activeSlaveDevices = device.slaveDevices.filter(slave => !slave.deleted);
+// ✅ Soft delete a slave device (set deleted = true)
+export const deleteSlaveDevice = asyncHandler(async (req, res) => {
+    const { productId, slaveId } = req.params;
 
-        return successResponse(res, activeSlaveDevices, "Slave devices retrieved successfully", 200);
-    } catch (error) {
-        return errorResponse(res, error.message, 400);
+    const device = await Device.findOne({ productId, deleted: false });
+
+    if (!device) {
+        return errorResponse(res, "Device not found", 404);
     }
-};
 
-export const getSlaveDeviceById = async (req, res) => {
-    try {
-        const { productId, slaveId } = req.params;
+    const slaveIndex = device.slaveDevices.findIndex(
+        (slave) => slave.slaveId === slaveId && !slave.deleted
+    );
 
-        // Find the device by productId (excluding soft-deleted devices)
-        const device = await Device.findOne({ productId, deleted: false });
-        if (!device) {
-            return errorResponse(res, "Device not found", 404);
-        }
-
-        // Find the specific slave device by slaveId and ensure it's not deleted
-        const slaveDevice = device.slaveDevices.find(slave => slave.slaveId === slaveId && !slave.deleted);
-        if (!slaveDevice) {
-            return errorResponse(res, "Slave device not found", 404);
-        }
-
-        return successResponse(res, slaveDevice, "Slave device retrieved successfully", 200);
-    } catch (error) {
-        return errorResponse(res, error.message, 400);
+    if (slaveIndex === -1) {
+        return errorResponse(res, "Slave device not found", 404);
     }
-};
 
+    device.slaveDevices[slaveIndex].deleted = true;
+    await device.save();
+
+    return successResponse(res, null, "Slave device marked as deleted", 200);
+});
+
+// ✅ Get a single slave device by slaveId
+export const getSlaveDeviceById = asyncHandler(async (req, res) => {
+    const { productId, slaveId } = req.params;
+
+    const device = await Device.findOne({ productId, deleted: false });
+
+    if (!device) {
+        return errorResponse(res, "Device not found", 404);
+    }
+
+    const slave = device.slaveDevices.find(
+        (slave) => slave.slaveId === slaveId && !slave.deleted
+    );
+
+    if (!slave) {
+        return errorResponse(res, "Slave device not found", 404);
+    }
+
+    return successResponse(res, slave, "Slave device retrieved successfully", 200);
+});
+
+// ✅ Get all slave devices of a specific device
+export const getSlaveDevices = asyncHandler(async (req, res) => {
+    const { productId } = req.params;
+
+    const device = await Device.findOne({ productId, deleted: false });
+
+    if (!device) {
+        return errorResponse(res, "Device not found", 404);
+    }
+
+    const activeSlaves = device.slaveDevices.filter(slave => !slave.deleted);
+
+    return successResponse(res, activeSlaves, "Slave devices retrieved successfully", 200);
+});
