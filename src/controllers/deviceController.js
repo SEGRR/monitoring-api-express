@@ -21,14 +21,32 @@ export const createDevice = async (req, res) => {
 // Get all devices
 export const getAllDevices = async (req, res) => {
     try {
-        // Retrieve only devices where deleted is false
-        const devices = await Device.find({ deleted: false });
+        let { page, limit } = req.query;
 
-        return successResponse(res, devices, "Devices retrieved successfully", 200);
+        // Convert page & limit to numbers and set defaults
+        page = parseInt(page) || 1;
+        limit = parseInt(limit) || 10;
+        const skip = (page - 1) * limit;
+
+        // Query only active (non-deleted) devices
+        const devices = await Device.find({ deleted: false })
+            .skip(skip)
+            .limit(limit);
+
+        // Get total count of non-deleted devices
+        const totalDevices = await Device.countDocuments({ deleted: false });
+
+        return successResponse(res, {
+            devices,
+            totalPages: Math.ceil(totalDevices / limit),
+            currentPage: page,
+            totalDevices
+        }, "Devices retrieved successfully", 200);
     } catch (error) {
-        return errorResponse(res, error.message, 400);
+        return errorResponse(res, error.message, 500);
     }
 };
+
 
 // Get device by ID
 export const getDeviceById = async (req, res) => {
