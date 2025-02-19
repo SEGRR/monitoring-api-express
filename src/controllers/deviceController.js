@@ -1,7 +1,7 @@
 import Device from '../models/device-metadata.js';
 import asyncHandler from '../utils/asyncHandler.js';
 import { successResponse, errorResponse } from '../utils/responseHandler.js';
-
+import User from '../models/userModel.js';
 // ✅ Get all devices (with pagination)
 export const getAllDevices = asyncHandler(async (req, res) => {
     let { page, limit } = req.query;
@@ -33,7 +33,7 @@ export const getDeviceById = asyncHandler(async (req, res) => {
 
 // ✅ Create a new device (check for duplicate ProductId)
 export const createDevice = asyncHandler(async (req, res) => {
-    const { productId } = req.body;
+    const { productId, serialNumber } = req.body;
 
     // Check if device with the same productId exists
     const existingDevice = await Device.findOne({ productId });
@@ -198,4 +198,37 @@ export const getSlaveDevices = asyncHandler(async (req, res) => {
     const activeSlaves = device.slaveDevices.filter(slave => !slave.deleted);
 
     return successResponse(res, activeSlaves, "Slave devices retrieved successfully", 200);
+});
+
+export const assignDeviceToUser = asyncHandler(async (req, res) => {
+    const { userId } = req.body;
+    const { productId } = req.params; // Product ID from query parameter
+
+    // Validate request
+    if (!userId || !productId) {
+        return errorResponse(res, "userId and productId are required", 400);
+    }
+
+    // ✅ Check if the user exists and is not soft-deleted
+    const user = await User.findOne({ _id: userId, deleted: { $ne: true } });
+    if (!user) {
+        return errorResponse(res, "User not found or deleted", 404);
+    }
+
+    // ✅ Check if the device exists
+    const device = await Device.findOne({ productId });
+    if (!device) {
+        return errorResponse(res, "Device not found", 404);
+    }
+
+    // ✅ Check if the device is already assigned
+    if (user.deviceList.includes(productId)) {
+        return errorResponse(res, "Device is already assigned to the user", 400);
+    }
+
+    // ✅ Add device to user's deviceList
+    user.deviceList.push(productId);
+    await user.save();
+
+    return successResponse(res, user, "Device assigned successfully", 200);
 });

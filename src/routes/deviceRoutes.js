@@ -1,7 +1,7 @@
 import express from 'express';
-import { createDevice, getAllDevices, getDeviceById, updateDevice, deleteDevice } from '../controllers/deviceController.js';
+import { createDevice, getAllDevices, getDeviceById, updateDevice, deleteDevice , assignDeviceToUser } from '../controllers/deviceController.js';
 import {addSlaveDevice,updateSlaveDevice,deleteSlaveDevice,getSlaveDevices ,getSlaveDeviceById} from '../controllers/deviceController.js';
-
+import { protect , masterAdminOnly } from '../middleware/authMiddleware.js';
 const router = express.Router();
 
 router.post('/', createDevice);
@@ -17,6 +17,7 @@ router.get('/:productId/slave/:slaveId' , getSlaveDeviceById)
 router.patch('/:productId/slave/:slaveId', updateSlaveDevice); // Update slave device
 router.delete('/:productId/slave/:slaveId', deleteSlaveDevice); // Soft delete slave device
 router.get('/:productId/slave', getSlaveDevices); // Retrieve all active slave devices
+router.post("/:productId/assign", protect, masterAdminOnly, assignDeviceToUser);
 
 
 
