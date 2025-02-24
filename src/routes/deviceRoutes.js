@@ -1,7 +1,9 @@
 import express from 'express';
 import { createDevice, getAllDevices, getDeviceById, updateDevice, deleteDevice , assignDeviceToUser } from '../controllers/deviceController.js';
 import {addSlaveDevice,updateSlaveDevice,deleteSlaveDevice,getSlaveDevices ,getSlaveDeviceById} from '../controllers/deviceController.js';
+import { getDeviceData } from '../controllers/dataController.js';
 import { protect , masterAdminOnly } from '../middleware/authMiddleware.js';
+import { getDevicesByProductIds } from '../controllers/deviceController.js';
 const router = express.Router();
 
 router.post('/', createDevice);
@@ -19,6 +21,11 @@ router.delete('/:productId/slave/:slaveId', deleteSlaveDevice); // Soft delete s
 router.get('/:productId/slave', getSlaveDevices); // Retrieve all active slave devices
 router.post("/:productId/assign", protect, masterAdminOnly, assignDeviceToUser);
 
+router.post("/devices-by-list", getDevicesByProductIds);
+
+
+// Data routes
+router.post('/:productId/slave/:slaveId/data' , getDeviceData);
 
 
 

@@ -6,6 +6,7 @@ import deviceRoutes from './routes/deviceRoutes.js';
 import errorHandler from './middleware/errorMiddleware.js';
 import userRoutes from './routes/userRoutes.js'
 import adminRoutes from './routes/adminRoutes.js'
+import dataRoutes from './routes/dataRoutes.js'
 dotenv.config();
 connectDB();
 
@@ -19,6 +20,7 @@ app.use(express.json());
 app.use('/api/devices' , deviceRoutes);
 app.use("/api/users", userRoutes);
 app.use('/api/admin' , adminRoutes);
+app.use('/api/data'  , dataRoutes)
 app.get('/' , (req ,res)=>{
     res.json({msg:"Hello"})
 })

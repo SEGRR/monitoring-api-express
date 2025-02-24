@@ -1,5 +1,5 @@
 import express from "express";
-import { registerUser, loginUser, getUserProfile, updateUser, deleteUser , assignDevice } from "../controllers/userController.js";
+import { registerUser, loginUser, getUserProfile, updateUser, deleteUser , assignDevice , getUserProfileById, updateUserById, deleteUserById } from "../controllers/userController.js";
 import upload from "../middleware/uploadMiddleware.js";
 import { protect, masterAdminOnly } from "../middleware/authMiddleware.js";
 import { getAllUsers } from "../controllers/adminController.js";
@@ -17,6 +17,10 @@ router.delete("/profile", protect, deleteUser);
 router.get("/", protect, masterAdminOnly, getAllUsers); // Only master-admin can view all users
 router.post("/assign", protect, masterAdminOnly, assignDevice);
 
+// Only Master-Admin can access these routes
+router.get('/:userId' , protect , masterAdminOnly , getUserProfileById);
+router.patch('/:userId' , protect , masterAdminOnly , updateUserById);
+router.delete('/:userId' , protect  ,masterAdminOnly , deleteUserById);
 
 
 export default router;

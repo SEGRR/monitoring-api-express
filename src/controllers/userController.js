@@ -79,6 +79,38 @@ export const getUserProfile = asyncHandler(async (req, res) => {
     return successResponse(res, user, "User profile retrieved successfully", 200);
 });
 
+export const getUserProfileById = asyncHandler(async (req, res) => {
+    const { userId } = req.params;
+
+    // 🔹 Find user by ID
+    const user = await User.findById(userId);
+    if (!user || user.deleted) {
+        return errorResponse(res, "User not found", 404);
+    }
+
+    // 🔹 Find all devices assigned to the user
+    const assignedDevices = await Device.find({ productId: { $in: user.deviceList }, deleted: { $ne: true } });
+
+    // 🔹 Prepare response
+    const userProfile = {
+        _id: user._id,
+        name: user.name,
+        phoneNumber: user.phoneNumber,
+        email: user.email,
+        governmentId: user.governmentId,
+        societyName: user.societyName,
+        address: user.address,
+        state: user.state,
+        role: user.role,
+        profilePicture: user.profilePicture,
+        documentId: user.documentId,
+        registeredOn: user.registeredOn,
+        assignedDevices: assignedDevices // 🔹 Merging device details
+    };
+
+    return successResponse(res, userProfile, "User profile retrieved successfully", 200);
+});
+
 // ✅ Soft Delete User (set deleted = true)
 export const deleteUser = asyncHandler(async (req, res) => {
     const user = await User.findByIdAndUpdate(req.user.id, { $set: { deleted: true } }, { new: true });
@@ -123,4 +155,45 @@ export const assignDevice = asyncHandler(async (req, res) => {
     await user.save();
 
     return successResponse(res, user, "Devices assigned successfully", 200);
+});
+
+
+
+export const updateUserById = asyncHandler(async (req, res) => {
+    const { userId } = req.params;
+    const updates = req.body;
+
+    // 🔹 Find user by ID
+    const user = await User.findById(userId);
+    if (!user || user.deleted) {
+        return errorResponse(res, "User not found", 404);
+    }
+
+    // 🔹 Prevent updating restricted fields
+    const restrictedFields = ["_id", "registeredOn", "deviceList"];
+    restrictedFields.forEach(field => delete updates[field]);
+
+    // 🔹 Update user fields
+    updates.lastUpdated = new Date(); // Track modification time
+    const updatedUser = await User.findByIdAndUpdate(userId, updates, { new: true });
+
+    return successResponse(res, updatedUser, "User updated successfully", 200);
+});
+
+
+export const deleteUserById = asyncHandler(async (req, res) => {
+    const { userId } = req.params;
+
+    // 🔹 Find user by ID
+    const user = await User.findById(userId);
+    if (!user || user.deleted) {
+        return errorResponse(res, "User not found", 404);
+    }
+
+    // 🔹 Mark user as deleted
+    user.deleted = true;
+    user.lastUpdated = new Date();
+    await user.save();
+
+    return successResponse(res, null, "User deleted successfully", 200);
 });

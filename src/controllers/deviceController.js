@@ -232,3 +232,15 @@ export const assignDeviceToUser = asyncHandler(async (req, res) => {
 
     return successResponse(res, user, "Device assigned successfully", 200);
 });
+
+export const getDevicesByProductIds = asyncHandler(async (req, res) => {
+    const { deviceList } = req.body;
+
+    if (!deviceList || !Array.isArray(deviceList) || deviceList.length === 0) {
+        return errorResponse(res, "deviceList must be a non-empty array", 400);
+    }
+
+    const devices = await Device.find({ productId: { $in: deviceList }, deleted: { $ne: true } });
+
+    return successResponse(res, devices, "Devices retrieved successfully", 200);
+});
