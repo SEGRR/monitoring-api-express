@@ -4,33 +4,46 @@ import { errorResponse, successResponse } from "../utils/responseHandler.js";
 
 // ✅ Retrieve Device Data with Aggregation
 export const getDeviceData = asyncHandler(async (req, res) => {
-    const { productId, slaveId, date, limit = 200, page = 1 } = req.body;
-        console.log(req.body)
-    // 🔹 Validate required fields
-    if (!productId || slaveId === undefined || !date) {
+    // Destructure fields from the request body
+    const { productId, slaveId, date, startTime, endTime, limit = 200, page = 1 } = req.body;
+    console.log(req.body);
+
+    // 🔹 Validate required fields:
+    // If date is missing, both startTime and endTime must be provided.
+    if (!productId || slaveId === undefined || (!date && (!startTime || !endTime))) {
         return errorResponse(res, "Missing required fields", 400);
     }
 
-    // 🔹 Convert date to range (start and end of the given day)
-    const startDate = new Date(date + "T00:00:00.000Z");
-    const endDate = new Date(date + "T23:59:59.999Z");
-    console.log(startDate , endDate)
+    // 🔹 Determine the time range:
+    let startDate, endDate;
+    if (date) {
+        // If 'date' is provided, use it to create start and end of day boundaries.
+        startDate = new Date(date + "T00:00:00.000Z");
+        endDate = new Date(date + "T23:59:59.999Z");
+    } else {
+        // If 'date' is missing but startTime and endTime are provided,
+        // add a 15-minute margin: subtract 15 minutes from startTime and add 15 minutes to endTime.
+        startDate = new Date(new Date(startTime).getTime() - 15 * 60 * 1000);
+        endDate = new Date(new Date(endTime).getTime() + 15 * 60 * 1000);
+    }
+    console.log(startDate, endDate);
+
     // 🔹 Pagination setup
     const skip = (page - 1) * limit;
 
-    // 🔹 Aggregation pipeline
+    // 🔹 Aggregation pipeline to filter, sort, and paginate the data
     const pipeline = [
         { 
             $match: { 
-                productId:productId, 
-                slaveId:slaveId, 
+                productId: productId, 
+                slaveId: slaveId, 
                 timestamp: { $gte: startDate, $lte: endDate } 
             } 
         },
         { $sort: { timestamp: -1 } }, // Latest data first
         { 
             $facet: {
-                metadata: [{ $count: "totalCount" }], // Get total document count
+                metadata: [{ $count: "totalCount" }], // Total count of documents
                 data: [
                     { $skip: skip },
                     { $limit: parseInt(limit) },
@@ -55,9 +68,16 @@ export const getDeviceData = asyncHandler(async (req, res) => {
     const result = await SensorData.aggregate(pipeline);
     const totalCount = result[0].metadata[0]?.totalCount || 0;
     const data = result[0].data;
-    console.log(result)
-    return successResponse(res, { totalCount, limit, page, data }, "Device data retrieved successfully", 200);
+    console.log(result);
+    
+    return successResponse(
+        res, 
+        { totalCount, limit, page, data }, 
+        "Device data retrieved successfully", 
+        200
+    );
 });
+
 
 
 
