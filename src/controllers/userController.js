@@ -123,40 +123,6 @@ export const deleteUser = asyncHandler(async (req, res) => {
 });
 
 
-export const assignDevice = asyncHandler(async (req, res) => {
-    const { userId, devicesList } = req.body; // Updated property name
-
-    // Validate request body
-    if (!userId || !Array.isArray(devicesList) || devicesList.length === 0) {
-        return errorResponse(res, "userId and a non-empty array of devicesList are required", 400);
-    }
-
-    // ✅ Check if the user exists and is not soft-deleted
-    const user = await User.findOne({ _id: userId, deleted: { $ne: true } });
-    if (!user) {
-        return errorResponse(res, "User not found or deleted", 404);
-    }
-
-    // ✅ Fetch all valid devices from DB
-    const validDevices = await Device.find({ productId: { $in: devicesList } });
-
-    // Extract existing product IDs from DB to check validity
-    const validProductIds = validDevices.map(device => device.productId);
-
-    // ✅ Filter out already assigned devices & invalid devices
-    const newDevices = devicesList.filter(id => !user.deviceList.includes(id) && validProductIds.includes(id));
-
-    if (newDevices.length === 0) {
-        return errorResponse(res, "No valid new devices to assign", 400);
-    }
-
-    // ✅ Add new devices to user's deviceList
-    user.deviceList.push(...newDevices);
-    await user.save();
-
-    return successResponse(res, user, "Devices assigned successfully", 200);
-});
-
 
 
 export const updateUserById = asyncHandler(async (req, res) => {
@@ -196,4 +162,78 @@ export const deleteUserById = asyncHandler(async (req, res) => {
     await user.save();
 
     return successResponse(res, null, "User deleted successfully", 200);
+});
+
+export const removeDeviceFromUser = asyncHandler(async (req, res) => {
+    const { userId, devicesList } = req.body;
+
+    // Validate request body
+    if (!userId || !Array.isArray(devicesList) || devicesList.length === 0) {
+        return errorResponse(res, "userId and a non-empty array of deviceList are required", 400);
+    }
+
+    // ✅ Check if the user exists and is not soft-deleted
+    const user = await User.findOne({ _id: userId, deleted: { $ne: true } });
+    if (!user) {
+        return errorResponse(res, "User not found or deleted", 404);
+    }
+
+    // ✅ Filter out existing devices from the user's deviceList
+    const updatedDeviceList = user.deviceList.filter(id => !devicesList.includes(id));
+
+    // ✅ If no changes, return early
+    if (updatedDeviceList.length === user.deviceList.length) {
+        return errorResponse(res, "No valid devices to remove", 400);
+    }
+
+    // ✅ Update the user's device list
+    user.deviceList = updatedDeviceList;
+    await user.save();
+
+    // ✅ Update `assigned` field to false in the Device model
+    await Device.updateMany(
+        { productId: { $in: devicesList.map(String) } },
+        { $set: { assigned: false } }
+    );
+
+    return successResponse(res, user, "Devices removed successfully", 200);
+});
+
+  
+export const assignDevices = asyncHandler(async (req, res) => {
+    const { userId, devicesList } = req.body; // Updated property name
+
+    // Validate request body
+    if (!userId || !Array.isArray(devicesList) || devicesList.length === 0) {
+        return errorResponse(res, "userId and a non-empty array of devicesList are required", 400);
+    }
+
+    // ✅ Check if the user exists and is not soft-deleted
+    const user = await User.findOne({ _id: userId, deleted: { $ne: true } });
+    if (!user) {
+        return errorResponse(res, "User not found or deleted", 404);
+    }
+
+    // ✅ Fetch all valid devices from DB
+    const validDevices = await Device.find({ productId: { $in: devicesList } , deleted:false });
+
+    // Extract existing product IDs from DB to check validity
+    const validProductIds = validDevices.map(device => device.productId);
+
+    // ✅ Filter out already assigned devices & invalid devices
+    const newDevices = devicesList.filter(id => !user.deviceList.includes(id) && validProductIds.includes(id));
+
+    if (newDevices.length === 0) {
+        return errorResponse(res, "No valid new devices to assign", 400);
+    }
+    console.log(newDevices);
+    // ✅ Add new devices to user's deviceList
+    
+    user.deviceList.push(...newDevices);
+    await user.save();
+
+     await Device.updateMany({productId:{$in:newDevices.map(String)}} , {$set:{assigned:true}})
+
+    return successResponse(res, user, "Devices assigned successfully", 200);
+
 });

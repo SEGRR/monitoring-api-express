@@ -7,6 +7,7 @@ import errorHandler from './middleware/errorMiddleware.js';
 import userRoutes from './routes/userRoutes.js'
 import adminRoutes from './routes/adminRoutes.js'
 import dataRoutes from './routes/dataRoutes.js'
+import waterVehicleRoutes from './routes/waterVehicleRoutes.js'
 dotenv.config();
 connectDB();
 
@@ -21,6 +22,7 @@ app.use('/api/devices' , deviceRoutes);
 app.use("/api/users", userRoutes);
 app.use('/api/admin' , adminRoutes);
 app.use('/api/data'  , dataRoutes)
+app.use('/api/waterVehicle', waterVehicleRoutes)
 app.get('/' , (req ,res)=>{
     res.json({msg:"Hello"})
 })

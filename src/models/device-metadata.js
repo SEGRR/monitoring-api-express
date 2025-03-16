@@ -21,6 +21,7 @@ const deviceSchema = new mongoose.Schema({
     installDate: { type: Date, default: Date.now },
     lastUpdated: {type:Date , default: Date.now},
     deleted:{type: Boolean , default:false},
+    assigned:{type:Boolean, default:false}
 },{collection:'device-metadata'});
 
 const Device = mongoose.model('device-metadata', deviceSchema);

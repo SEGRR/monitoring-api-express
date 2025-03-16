@@ -220,7 +220,9 @@ export const assignDeviceToUser = asyncHandler(async (req, res) => {
     if (!device) {
         return errorResponse(res, "Device not found", 404);
     }
-
+    if (device.assigned) {
+        return errorResponse(res, "Device is already assigned", 400);
+    }
     // ✅ Check if the device is already assigned
     if (user.deviceList.includes(productId)) {
         return errorResponse(res, "Device is already assigned to the user", 400);
@@ -228,7 +230,9 @@ export const assignDeviceToUser = asyncHandler(async (req, res) => {
 
     // ✅ Add device to user's deviceList
     user.deviceList.push(productId);
+    device.assigned = true;
     await user.save();
+    await device.save();
 
     return successResponse(res, user, "Device assigned successfully", 200);
 });
@@ -243,4 +247,11 @@ export const getDevicesByProductIds = asyncHandler(async (req, res) => {
     const devices = await Device.find({ productId: { $in: deviceList }, deleted: { $ne: true } });
 
     return successResponse(res, devices, "Devices retrieved successfully", 200);
+});
+
+export const getUnassignedDevices = asyncHandler(async (req, res) => {
+
+    const unassignedDevices = await Device.find({ assigned: false, deleted: false });
+    console.log('hello')
+    return successResponse(res, unassignedDevices, "Unassigned devices retrieved successfully", 200);
 });

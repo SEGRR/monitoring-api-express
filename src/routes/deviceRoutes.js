@@ -1,6 +1,6 @@
 import express from 'express';
-import { createDevice, getAllDevices, getDeviceById, updateDevice, deleteDevice , assignDeviceToUser } from '../controllers/deviceController.js';
-import {addSlaveDevice,updateSlaveDevice,deleteSlaveDevice,getSlaveDevices ,getSlaveDeviceById} from '../controllers/deviceController.js';
+import { createDevice, getAllDevices, getDeviceById, updateDevice, deleteDevice , assignDeviceToUser,getUnassignedDevices } from '../controllers/deviceController.js';
+import {addSlaveDevice,updateSlaveDevice,deleteSlaveDevice,getSlaveDevices ,getSlaveDeviceById, } from '../controllers/deviceController.js';
 import { getDeviceData } from '../controllers/dataController.js';
 import { protect , masterAdminOnly } from '../middleware/authMiddleware.js';
 import { getDevicesByProductIds } from '../controllers/deviceController.js';
@@ -8,6 +8,7 @@ const router = express.Router();
 
 router.post('/', createDevice);
 router.get('/', getAllDevices);
+router.get('/unassigned', getUnassignedDevices);
 router.get('/:productId', getDeviceById);
 router.patch('/:productId', updateDevice);
 router.delete('/:productId', deleteDevice);
