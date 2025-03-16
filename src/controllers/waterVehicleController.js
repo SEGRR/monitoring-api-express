@@ -40,6 +40,15 @@ export const getWaterVehicleById = asyncHandler(async (req, res) => {
   return successResponse(res, "Water vehicle retrieved successfully", vehicle);
 });
 
+// ✅ Get Water Vehicle by ID
+export const getWaterVehicleByPhoneNumber = asyncHandler(async (req, res) => {
+  const { phoneNumber } = req.params;
+  const vehicle = await WaterVehicle.findOne({ phoneNumber: phoneNumber, deleted: false });
+
+  if (!vehicle) return errorResponse(res, "Water vehicle not found", 404);
+
+  return successResponse(res, "Water vehicle retrieved successfully", vehicle);
+});
 // ✅ Update Water Vehicle
 export const updateWaterVehicle = asyncHandler(async (req, res) => {
   const { id } = req.params;
@@ -71,3 +80,5 @@ export const deleteWaterVehicle = asyncHandler(async (req, res) => {
 
   return successResponse(res, "Water vehicle deleted successfully");
 });
+
+

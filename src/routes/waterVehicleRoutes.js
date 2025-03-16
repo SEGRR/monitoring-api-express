@@ -13,6 +13,8 @@ const router = express.Router();
 router.post("/", upload.single("vehiclePhoto"), createWaterVehicle);
 router.get("/", getAllWaterVehicles);
 router.get("/:id", getWaterVehicleById);
+router.get("/phoneNumber/:phoneNumber", getWaterVehicleByPhoneNumber);
+
 router.patch("/:id", upload.single("vehiclePhoto"), updateWaterVehicle);
 router.delete("/:id", deleteWaterVehicle);
 
