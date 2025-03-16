@@ -47,7 +47,7 @@ export const getWaterVehicleByPhoneNumber = asyncHandler(async (req, res) => {
 
   if (!vehicle) return errorResponse(res, "Water vehicle not found", 404);
 
-  return successResponse(res, "Water vehicle retrieved successfully", vehicle);
+  return successResponse(res, vehicle,"Water vehicle retrieved successfully", );
 });
 // ✅ Update Water Vehicle
 export const updateWaterVehicle = asyncHandler(async (req, res) => {
