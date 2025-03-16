@@ -5,7 +5,7 @@ import {
   getWaterVehicleById,
   updateWaterVehicle,
   deleteWaterVehicle,
-  getWaterVehicleByPhoneNumber
+  getWaterVehicleByPhoneNumber,
 } from "../controllers/waterVehicleController.js";
 import upload from "../middleware/uploadMiddleware.js"; // Middleware for handling image uploads
 
