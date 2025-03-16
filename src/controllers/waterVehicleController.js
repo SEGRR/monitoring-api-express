@@ -43,7 +43,7 @@ export const getWaterVehicleById = asyncHandler(async (req, res) => {
 // ✅ Get Water Vehicle by ID
 export const getWaterVehicleByPhoneNumber = asyncHandler(async (req, res) => {
   const { phoneNumber } = req.params;
-  const vehicle = await WaterVehicle.findOne({ phoneNumber: phoneNumber, deleted: false });
+  const vehicle = await WaterVehicle.find({ phoneNumber: phoneNumber, deleted: false });
 
   if (!vehicle) return errorResponse(res, "Water vehicle not found", 404);
 
