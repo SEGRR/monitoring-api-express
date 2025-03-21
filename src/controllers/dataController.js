@@ -101,8 +101,8 @@ export const getFlowPeriodsDayWise = async (req, res) => {
 
     // Case 2: If 'startTime' and 'endTime' are provided, filter by time range
        else if (startTime && endTime) {
-        const adjustedStartTime = new Date(new Date(startTime).getTime() - 60 * 60 * 1000); // Subtract 1 hour
-        const adjustedEndTime = new Date(new Date(endTime).getTime() + 60 *  60 * 1000);   // Add 1 hour
+        const adjustedStartTime = new Date(new Date(startTime).getTime() - 15 * 60 * 1000); // Subtract 1 hour
+        const adjustedEndTime = new Date(new Date(endTime).getTime() + 15 *  60 * 1000);   // Add 1 hour
 
         matchStage.timestamp = {
             $gte: adjustedStartTime,
