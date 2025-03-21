@@ -4,12 +4,10 @@ import { errorResponse, successResponse } from "../utils/responseHandler.js";
 
 // ✅ Retrieve Device Data with Aggregation
 export const getDeviceData = asyncHandler(async (req, res) => {
-    // Destructure fields from the request body
     const { productId, slaveId, date, startTime, endTime, limit = 200, page = 1 } = req.body;
     console.log(req.body);
 
     // 🔹 Validate required fields:
-    // If date is missing, both startTime and endTime must be provided.
     if (!productId || slaveId === undefined || (!date && (!startTime || !endTime))) {
         return errorResponse(res, "Missing required fields", 400);
     }
@@ -17,39 +15,39 @@ export const getDeviceData = asyncHandler(async (req, res) => {
     // 🔹 Determine the time range:
     let startDate, endDate;
     if (date) {
-        // If 'date' is provided, use it to create start and end of day boundaries.
         startDate = new Date(date + "T00:00:00.000Z");
         endDate = new Date(date + "T23:59:59.999Z");
     } else {
-        // If 'date' is missing but startTime and endTime are provided,
-        // add a 15-minute margin: subtract 15 minutes from startTime and add 15 minutes to endTime.
-        startDate = new Date(new Date(startTime).getTime() - 15 * 60 * 1000);
-        endDate = new Date(new Date(endTime).getTime() + 15 * 60 * 1000);
+        startDate = new Date(new Date(startTime).getTime() - 5 * 60 * 1000); // Subtract 5 mins
+        endDate = new Date(new Date(endTime).getTime() + 5 * 60 * 1000); // Add 5 mins
     }
     console.log(startDate, endDate);
 
-    // 🔹 Pagination setup
-    const skip = (page - 1) * limit;
-
-    // 🔹 Aggregation pipeline to filter, sort, and paginate the data
+    // 🔹 Base aggregation pipeline (filter + sort)
     const pipeline = [
-        { 
-            $match: { 
-                productId: productId, 
-                slaveId: slaveId, 
-                timestamp: { $gte: startDate, $lte: endDate } 
-            } 
+        {
+            $match: {
+                productId: productId,
+                slaveId: slaveId,
+                timestamp: { $gte: startDate, $lte: endDate }
+            }
         },
         { $sort: { timestamp: -1 } }, // Latest data first
-        { 
+    ];
+
+    // 🔹 Add pagination only when 'date' is provided:
+    if (date) {
+        const skip = (page - 1) * limit;
+
+        pipeline.push({
             $facet: {
-                metadata: [{ $count: "totalCount" }], // Total count of documents
+                metadata: [{ $count: "totalCount" }],
                 data: [
                     { $skip: skip },
                     { $limit: parseInt(limit) },
                     {
                         $project: {
-                            _id: 0, 
+                            _id: 0,
                             productId: 1,
                             timestamp: 1,
                             currentFlow: 1,
@@ -61,21 +59,42 @@ export const getDeviceData = asyncHandler(async (req, res) => {
                     }
                 ]
             }
-        }
-    ];
+        });
 
-    // 🔹 Execute aggregation
-    const result = await SensorData.aggregate(pipeline);
-    const totalCount = result[0].metadata[0]?.totalCount || 0;
-    const data = result[0].data;
-    console.log(result);
-    
-    return successResponse(
-        res, 
-        { totalCount, limit, page, data }, 
-        "Device data retrieved successfully", 
-        200
-    );
+        const result = await SensorData.aggregate(pipeline);
+        const totalCount = result[0].metadata[0]?.totalCount || 0;
+        const data = result[0].data;
+
+        return successResponse(
+            res,
+            { totalCount, limit, page, data },
+            "Device data retrieved successfully",
+            200
+        );
+    } else {
+        // 🔹 If startTime and endTime are provided → Return all matching records
+        pipeline.push({
+            $project: {
+                _id: 0,
+                productId: 1,
+                timestamp: 1,
+                currentFlow: 1,
+                totalFlow: 1,
+                deviceLabel: 1,
+                slaveId: 1,
+                gsmRange: 1
+            }
+        });
+
+        const data = await SensorData.aggregate(pipeline);
+
+        return successResponse(
+            res,
+            { totalCount: data.length, data },
+            "Device data retrieved successfully",
+            200
+        );
+    }
 });
 
 
@@ -101,8 +120,8 @@ export const getFlowPeriodsDayWise = async (req, res) => {
 
     // Case 2: If 'startTime' and 'endTime' are provided, filter by time range
        else if (startTime && endTime) {
-        const adjustedStartTime = new Date(new Date(startTime).getTime() - 15 * 60 * 1000); // Subtract 1 hour
-        const adjustedEndTime = new Date(new Date(endTime).getTime() + 15 *  60 * 1000);   // Add 1 hour
+        const adjustedStartTime = new Date(new Date(startTime).getTime() - 5 * 60 * 1000); // Subtract 1 hour
+        const adjustedEndTime = new Date(new Date(endTime).getTime() + 5 *  60 * 1000);   // Add 1 hour
 
         matchStage.timestamp = {
             $gte: adjustedStartTime,
