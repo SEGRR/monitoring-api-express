@@ -47,7 +47,7 @@ export const getDeviceData = asyncHandler(async (req, res) => {
                 {
                   $setWindowFields: {
                     partitionBy: "$productId",
-                    sortBy: { timestamp: -1 },
+                    sortBy: { timestamp: 1 },
                     output: {
                       previousTotalFlow: {
                         $shift: {
@@ -90,15 +90,10 @@ export const getDeviceData = asyncHandler(async (req, res) => {
                         {
                           $ne: [
                             {
-                                $subtract: [
-                                    {
-                                      $toLong: "$timestamp"
-                                    },
-                                    {
-                                      $toLong:
-                                        "$previousTimestamp"
-                                    }
-                                  ]
+                              $subtract: [
+                                "$timestamp",
+                                "$previousTimestamp"
+                              ]
                             },
                             0
                           ]
@@ -116,15 +111,15 @@ export const getDeviceData = asyncHandler(async (req, res) => {
                                   ]
                                 },
                                 {
-                                    $subtract: [
-                                        {
-                                          $toLong: "$timestamp"
-                                        },
-                                        {
-                                          $toLong:
-                                            "$previousTimestamp"
-                                        }
-                                      ]
+                                   $subtract: [
+                                      {
+                                        $toLong: "$timestamp"
+                                      },
+                                      {
+                                        $toLong:
+                                          "$previousTimestamp"
+                                      }
+                                    ]
                                 }
                               ]
                             },
@@ -139,7 +134,10 @@ export const getDeviceData = asyncHandler(async (req, res) => {
                     deviceLabel: 1,
                     gsmRange: 1
                   }
-                }
+                },
+              {$sort: {
+                timestamp: -1
+              }}
       ];
     // 🔹 Add pagination only when 'date' is provided:
     if (date) {
