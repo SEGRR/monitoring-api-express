@@ -47,7 +47,7 @@ export const getDeviceData = asyncHandler(async (req, res) => {
                 {
                   $setWindowFields: {
                     partitionBy: "$productId",
-                    sortBy: { timestamp: 1 },
+                    sortBy: { timestamp: -1 },
                     output: {
                       previousTotalFlow: {
                         $shift: {
@@ -494,36 +494,49 @@ export const getFlowPeriodsDayWise = async (req, res) => {
           }
         },
         {
-          $group: {
-            _id: "$flowPeriodId",
-            productId: { $first: "$productId" },
-            slaveId: { $first: "$slaveId" },
-            startTime: { $first: "$timestamp" },
-            endTime: { $last: "$timestamp" },
-            totalWater: { $sum: "$flowDiff" },
-            averageFlow: { $avg: "$currentFlow" },
-            readings: { $push: "$$ROOT" }
+            $group: {
+              _id: "$flowPeriodId",
+              productId: { $first: "$productId" },
+              slaveId: { $first: "$slaveId" },
+              startTime: { $first: "$timestamp" },
+              endTime: { $last: "$timestamp" },
+              totalFlowAtStart: { $first: "$totalFlow" },
+              totalFlowAtEnd: { $last: "$totalFlow" },
+              totalWaterMeasured: { $sum: "$flowDiff" },
+              avgFlowRate: { $avg: "$currentFlow" },
+              maxFlowRate: { $max: "$currentFlow" },
+              minFlowRate: { $min: "$currentFlow" },
+              readings: { $push: "$$ROOT" }
+            }
+          },
+
+          {
+            $project: {
+              _id: 0,
+              flowPeriodId: "$_id",
+              productId: 1,
+              slaveId: 1,
+              startTime: 1,
+              endTime: 1,
+              totalFlowAtStart: 1,
+              totalFlowAtEnd: 1,
+              totalWaterMeasured: 1,
+              avgFlowRate: 1,
+              maxFlowRate: 1,
+              minFlowRate: 1,
+              readingCount: { $size: "$readings" },
+              durationMillis: {
+                $subtract: ["$endTime", "$startTime"]
+              },
+              durationMinutes: {
+                $divide: [
+                  { $subtract: ["$endTime", "$startTime"] },
+                  1000 * 60
+                ]
+              }
+            }
           }
-        },
-        {
-          $project: {
-            _id: 0,
-            flowPeriodId: "$_id",
-            productId: 1,
-            slaveId: 1,
-            startTime: 1,
-            endTime: 1,
-            totalWater: 1,
-            averageFlow: 1,
-            readingCount: { $size: "$readings" },
-             durationMinutes: {
-            $divide: [
-              { $subtract: ["$endTime", "$startTime"] },
-              1000 * 60
-            ]
-          }
-          }
-        },
+          ,
         {
           $sort: { startTime: 1 }
         }
