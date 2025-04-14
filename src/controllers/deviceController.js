@@ -1,5 +1,6 @@
 import Device from '../models/device-metadata.js';
 import asyncHandler from '../utils/asyncHandler.js';
+import SensorData from '../models/sensorDataModel.js';
 import { successResponse, errorResponse } from '../utils/responseHandler.js';
 import User from '../models/userModel.js';
 // ✅ Get all devices (with pagination)
@@ -255,3 +256,69 @@ export const getUnassignedDevices = asyncHandler(async (req, res) => {
     console.log('hello')
     return successResponse(res, unassignedDevices, "Unassigned devices retrieved successfully", 200);
 });
+
+
+export const getUnregisteredDevices = asyncHandler(async (req, res) => {
+    // Step 1: Get all unique productIds from SensorData
+    const deviceIdsInData = await SensorData.distinct("productId");
+  
+    // Step 2: Get all registered productIds from Device
+    const registeredDeviceIds = await Device.distinct("productId");
+  
+    // Step 3: Identify unregistered deviceIds
+    const unregisteredDeviceIds = deviceIdsInData.filter(
+      (id) => !registeredDeviceIds.includes(id)
+    );
+  
+    // Step 4: Get lastSeen info for unregistered devices
+    const deviceDetails = await SensorData.aggregate([
+        {
+          $match: {
+            productId: { $in: unregisteredDeviceIds }
+          }
+        },
+        {
+          $sort: {
+            timestamp: -1
+          }
+        },
+        {
+          $group: {
+            _id: {
+              productId: "$productId",
+              slaveId: "$slaveId"
+            },
+            latestDoc: { $first: "$$ROOT" }
+          }
+        },
+        {
+          $group: {
+            _id: "$_id.productId",
+            slaves: {
+              $push: {
+                slaveId: "$_id.slaveId",
+                latestDoc: "$latestDoc"
+              }
+            },
+            lastSeen: { $max: "$latestDoc.timestamp" }
+          }
+        },
+        {
+          $project: {
+            _id: 0,
+            productId: "$_id",
+            lastSeen: 1,
+            slaves: 1
+          }
+        },
+        {
+          $sort: { lastSeen: -1 }
+        }
+      ]);    
+  
+    return res.status(200).json({
+      success: true,
+      message: "Unregistered devices with last seen timestamps",
+      devices: deviceDetails
+    });
+  });
