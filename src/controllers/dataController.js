@@ -132,125 +132,134 @@ export const getFlowPeriodsDayWise = async (req, res) => {
     const aggregationPipeline =  [
         // Step 1: Filter data for the given productId
         { 
-             $match: matchStage
+          $match: matchStage 
         },
-    
-        // Step 2: Sort Data by Timestamp
+      
+        // Step 2: Sort data by timestamp
         { 
-            $sort: { timestamp: 1 } 
+          $sort: { timestamp: 1 } 
         },
-    
-        // Step 3: Use $accumulator to Assign Period IDs Dynamically
+      
+        // Step 3: Use $accumulator logic to segment flow periods
         {
-            $group: {
-                _id: null,
-                readings: {
-                    $push: {
-                        timestamp: "$timestamp",
-                        currentFlow: "$currentFlow",
-                        totalFlow: "$totalFlow" // Capture totalFlow for later reference
-                    }
-                }
+          $group: {
+            _id: null,
+            readings: {
+              $push: {
+                timestamp: "$timestamp",
+                currentFlow: "$currentFlow",
+                totalFlow: "$totalFlow"
+              }
             }
+          }
         },
         {
-            $project: {
-                readings: {
-                    $reduce: {
-                        input: "$readings",
-                        initialValue: {
-                            periods: [],
-                            currentPeriod: [],
-                            lastFlow: 0
-                        },
-                        in: {
-                            periods: {
-                                $concatArrays: [
-                                    "$$value.periods",
-                                    {
-                                        $cond: {
-                                            if: {
-                                                $and: [
-                                                    { $eq: ["$$this.currentFlow", 0] },
-                                                    { $gt: [{ $size: "$$value.currentPeriod" }, 0] }
-                                                ]
-                                            },
-                                            then: ["$$value.currentPeriod"],
-                                            else: []
-                                        }
-                                    }
-                                ]
-                            },
-                            currentPeriod: {
-                                $cond: {
-                                    if: { $eq: ["$$this.currentFlow", 0] },
-                                    then: [],
-                                    else: { $concatArrays: ["$$value.currentPeriod", ["$$this"]] }
-                                }
-                            },
-                            lastFlow: "$$this.currentFlow"
+          $project: {
+            readings: {
+              $reduce: {
+                input: "$readings",
+                initialValue: {
+                  periods: [],
+                  currentPeriod: [],
+                  lastFlow: 0
+                },
+                in: {
+                  periods: {
+                    $concatArrays: [
+                      "$$value.periods",
+                      {
+                        $cond: {
+                          if: {
+                            $and: [
+                              { $lt: ["$$this.currentFlow", 1] },
+                              { $gt: [{ $size: "$$value.currentPeriod" }, 0] }
+                            ]
+                          },
+                          then: ["$$value.currentPeriod"],
+                          else: []
                         }
+                      }
+                    ]
+                  },
+                  currentPeriod: {
+                    $cond: {
+                      if: { $lt: ["$$this.currentFlow", 1] },
+                      then: [],
+                      else: { $concatArrays: ["$$value.currentPeriod", ["$$this"]] }
                     }
+                  },
+                  lastFlow: "$$this.currentFlow"
                 }
+              }
             }
+          }
         },
-    
-        // Step 4: Unwind the extracted periods
+      
+        // Step 4: Unwind periods
         { 
-            $unwind: "$readings.periods"
+          $unwind: "$readings.periods" 
         },
-    
-        // Step 5: Calculate statistics for each period
+      
+        // Step 5: Compute stats for each period
         {
-            $project: {
-                startTime: { $arrayElemAt: ["$readings.periods.timestamp", 0] },
-                endTime: { $arrayElemAt: ["$readings.periods.timestamp", -1] },
-                totalWaterMeasured: { 
-                    $sum: "$readings.periods.currentFlow" 
-                },
-                totalFlowAtStart: { $subtract: [{ $arrayElemAt: ["$readings.periods.totalFlow", 0] }, { $arrayElemAt: ["$readings.periods.currentFlow", 0] }] }, // Capture totalFlow at start
-                totalFlowAtEnd: { $arrayElemAt: ["$readings.periods.totalFlow", -1] }, // Capture totalFlow at end
-                avgFlowRate: { 
-                    $avg: "$readings.periods.currentFlow" 
-                },
-                maxFlowRate: { 
-                    $max: "$readings.periods.currentFlow" 
-                },
-                minFlowRate: { 
-                    $min: "$readings.periods.currentFlow" 
-                },
-                readingCount: { 
-                    $size: "$readings.periods" 
-                }
-            }
+          $project: {
+            startTime: { $arrayElemAt: ["$readings.periods.timestamp", 0] },
+            endTime: { $arrayElemAt: ["$readings.periods.timestamp", -1] },
+            totalWaterMeasured: { $subtract: [{ $arrayElemAt: ["$readings.periods.totalFlow", -1] } , { $arrayElemAt: ["$readings.periods.totalFlow", 0] }] },
+            totalFlowAtStart: {
+              $subtract: [
+                { $arrayElemAt: ["$readings.periods.totalFlow", 0] },
+                { $arrayElemAt: ["$readings.periods.currentFlow", 0] }
+              ]
+            },
+            totalFlowAtEnd: { $arrayElemAt: ["$readings.periods.totalFlow", -1] },
+            avgFlowRate: { $avg: "$readings.periods.currentFlow" },
+            maxFlowRate: { $max: "$readings.periods.currentFlow" },
+            minFlowRate: { $min: "$readings.periods.currentFlow" },
+            readingCount: { $size: "$readings.periods" }
+          }
         },
-    
+      
         // Step 6: Calculate Duration
         {
-            $project: {
-               _id:0,
-                startTime: 1,
-                endTime: 1,
-                durationMinutes: { 
-                    $divide: [
-                        { $subtract: ["$endTime", "$startTime"] }, 
-                        1000 * 60 // Convert milliseconds to minutes
-                    ] 
-                },
-                totalWaterMeasured: 1,
-                totalFlowAtStart: 1,
-                totalFlowAtEnd: 1,
-                avgFlowRate: 1,
-                maxFlowRate: 1,
-                minFlowRate: 1,
-                readingCount: 1
-            }
+          $project: {
+            _id: 0,
+            startTime: 1,
+            endTime: 1,
+            durationMinutes: {$round: [{
+                $divide: [
+                  { $subtract: ["$endTime", "$startTime"] },
+                  1000 * 60
+                ]
+              }, 2]} ,
+              totalWaterMeasured: {
+                $round: [
+                  { $subtract: ["$totalFlowAtEnd", "$totalFlowAtStart"] },
+                  2
+                ]
+              },
+            totalFlowAtStart: { $round: ["$totalFlowAtStart", 2] },
+            totalFlowAtEnd: { $round: ["$totalFlowAtEnd", 2] },
+            avgFlowRate: { $round: ["$avgFlowRate", 2] },
+            maxFlowRate: { $round: ["$maxFlowRate", 2] },
+            minFlowRate: { $round: ["$minFlowRate", 2] },
+            readingCount: 1,
+          }
         },
-    
-        // Step 7: Sort Periods by Start Time
+      
         {
+            $match: {
+              totalWaterMeasured: { $gt: 1 },
+              durationMinutes: { $gte: 1 }, // Minimum duration of 1 minute
+              avgFlowRate: { $gte: 0.5 },   // Ignore near-zero flows
+              maxFlowRate: { $lte: 1000 }   // Example threshold for outliers
+            }
+          },
+          
+          // Step 9: Sort the valid periods by start time
+          {
             $sort: { startTime: -1 }
-        }
+          }
       ];
 
     SensorData.aggregate(aggregationPipeline)
