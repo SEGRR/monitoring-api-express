@@ -1,6 +1,7 @@
 import User from '../models/userModel.js';
 import asyncHandler from '../utils/asyncHandler.js';
 import { successResponse , errorResponse } from '../utils/responseHandler.js';
+
 export const loginMasterAdmin = asyncHandler(async (req, res) => {
     const { email, password } = req.body;
 
@@ -30,3 +31,21 @@ export const loginMasterAdmin = asyncHandler(async (req, res) => {
         token: user.getSignedJwtToken()
     }, "Master-Admin login successful", 200);
 });
+export const changePassword = asyncHandler(async (req, res) => {
+    const { phoneNumber, newPassword } = req.body;
+  
+    if (!phoneNumber || !newPassword) {
+      return errorResponse(res ,'Phone number and new password are required', 400);
+    }
+  
+    const user = await User.findOne({ phoneNumber });
+    if (!user) {
+       return errorResponse(res , "User not Found" , 401)
+    }
+  
+    const salt = await bcrypt.genSalt(10);
+    user.password = await bcrypt.hash(newPassword, salt);
+    await user.save();
+  
+     return successResponse(res, null , "Password Changed Successfully")
+  });

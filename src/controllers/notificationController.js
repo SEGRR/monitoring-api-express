@@ -20,7 +20,7 @@ export const sendUserNotification = asyncHandler(async (req, res) => {
   
     await notification.save();
     
-    successResponse(res  , {message}, "notifications sent successfully")
+   return  successResponse(res  , {message}, "notifications sent successfully")
   });
   
   // @desc    Get admin notifications (optionally filter by isRead)
@@ -38,6 +38,6 @@ export const sendUserNotification = asyncHandler(async (req, res) => {
       .populate('sender', 'name email')
       .sort({ timestamp: -1 });
     
-      successResponse(res , notifications , "notifications retrived successfully")
+      return successResponse(res , notifications , "notifications retrived successfully")
     // res.status(200).json({ success: true, data: notifications });
   });

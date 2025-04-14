@@ -6,6 +6,7 @@ import {
   updateWaterVehicle,
   deleteWaterVehicle,
   getWaterVehicleByPhoneNumber,
+  analyzeSingleVehicleFlow
 } from "../controllers/waterVehicleController.js";
 import upload from "../middleware/uploadMiddleware.js"; // Middleware for handling image uploads
 
@@ -18,5 +19,7 @@ router.get("/phoneNumber/:phoneNumber", getWaterVehicleByPhoneNumber);
 
 router.patch("/:id", upload.single("vehiclePhoto"), updateWaterVehicle);
 router.delete("/:id", deleteWaterVehicle);
+
+router.post('/flow-analysis', analyzeSingleVehicleFlow)
 
 export default router;

@@ -2,6 +2,7 @@ import express from "express";
 import { registerUser, loginUser, getUserProfile, updateUser, deleteUser , assignDevices , getUserProfileById, updateUserById, deleteUserById , removeDeviceFromUser } from "../controllers/userController.js";
 import upload from "../middleware/uploadMiddleware.js";
 import { protect, masterAdminOnly } from "../middleware/authMiddleware.js";
+import {changePassword} from '../controllers/authController.js'
 import { getAllUsers } from "../controllers/adminController.js";
 const router = express.Router();
 
@@ -24,5 +25,5 @@ router.get('/:userId' , protect , masterAdminOnly , getUserProfileById);
 router.patch('/:userId' , protect , masterAdminOnly , updateUserById);
 router.delete('/:userId' , protect  ,masterAdminOnly , deleteUserById);
 
-
+router.post('/change-password', changePassword);
 export default router;

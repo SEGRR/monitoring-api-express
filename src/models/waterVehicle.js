@@ -8,7 +8,7 @@ const WaterVehicleSchema = new mongoose.Schema(
     startTime: { type: Date, required: true },
     endTime: { type: Date, required: true },
     vehicleNo: { type: String, required: true },
-    waterInLitter: { type: String, required: true }, // Fixed naming
+    waterInLitres: { type: String, required: true }, // Fixed naming
     geoLat: { type: String, required: true },
     geoLong: { type: String, required: true },
     placeName: { type: String, required: true },
