@@ -41,3 +41,19 @@ export const sendUserNotification = asyncHandler(async (req, res) => {
       return successResponse(res , notifications , "notifications retrived successfully")
     // res.status(200).json({ success: true, data: notifications });
   });
+
+  export const sendNotificationById = asyncHandler(async (req, res) => {
+    const { id } = req.params;
+  
+    const notification = await Notification.findById(id)
+    .populate('sender' , 'name email profilePicture phoneNumber');
+    if (!notification) {
+      return errorResponse(res, 'Notification not found',404);
+    }
+  
+    notification.isRead = true;
+    await notification.save();
+  
+    return successResponse(res, notification,'Notification marked as Read.');
+  });
+  
