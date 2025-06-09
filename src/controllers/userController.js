@@ -2,6 +2,7 @@ import User from "../models/userModel.js";
 import asyncHandler from "../utils/asyncHandler.js";
 import { successResponse, errorResponse } from "../utils/responseHandler.js";
 import Device from "../models/device-metadata.js";
+import {sendEmail} from "../utils/sendEmail.js"
 
 // ✅ Register User with Profile Picture & Document
 export const registerUser = asyncHandler(async (req, res) => {
@@ -11,7 +12,8 @@ export const registerUser = asyncHandler(async (req, res) => {
     if (userExists) {
         return errorResponse(res, "Phone Number already in use", 400);
     }
-
+    // raw password
+   
     // File Uploads
     const profilePicture = req.files?.profilePicture ? req.files.profilePicture[0].path : null;
     const documentId = req.files?.documentId ? req.files.documentId[0].path : null;
@@ -20,6 +22,26 @@ export const registerUser = asyncHandler(async (req, res) => {
         name, email, phoneNumber, password, governmentId, societyName, address, state, role,
         profilePicture, documentId
     });
+
+     // Send email to new user
+  if (email) {
+    const html = `
+      <h3>Welcome to Pravah!</h3>
+      <p>Dear ${name},</p>
+      <p>Your account has been successfully registered. Below are your login credentials:</p>
+      <ul>
+        <li><strong>Username:</strong> ${email}</li>
+        <li><strong>Password:</strong> ${password}</li>
+      </ul>
+      <p>Please keep this information secure.</p>
+    `;
+
+    await sendEmail({
+      to: email,
+      subject: "Welcome to Our Platform!",
+      html,
+    });
+  }
 
     return successResponse(res, {
         _id: user._id,
