@@ -24,13 +24,13 @@ export const registerUser = asyncHandler(async (req, res) => {
     });
 
      // Send email to new user
-  if (email) {
+  if (phoneNumber) {
     const html = `
       <h3>Welcome to Pravah!</h3>
       <p>Dear ${name},</p>
       <p>Your account has been successfully registered. Below are your login credentials:</p>
       <ul>
-        <li><strong>Username:</strong> ${email}</li>
+        <li><strong>Username:</strong> ${phoneNumber}</li>
         <li><strong>Password:</strong> ${password}</li>
       </ul>
       <p>Please keep this information secure.</p>
